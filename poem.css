@@ -1,0 +1,63 @@
+/* Entire page black background and white text */
+body, html {
+  margin: 0;
+  padding: 0;
+  background-color: black;
+  color: white;
+  font-family: 'Courier New', Courier, monospace;
+  height: 100%;
+}
+
+/* Main container fills viewport */
+main.poem-dark {
+  min-height: 100vh;
+  padding: 3rem 4rem;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start; /* text starts at top */
+  text-align: right;             /* left aligned text */
+}
+
+/* Headings styles */
+.poem-dark h2,
+.poem-dark h3 {
+  padding-bottom: 0.4rem;
+  margin-top: 2rem;
+  color: white;
+  text-align: right;  
+} 
+
+/* Paragraph style */
+.poem-dark p {
+  white-space: pre-line;
+  line-height: 1.7;
+  text-align: right;
+}
+
+/* Back button container is pushed to bottom and centered */
+.back-button {
+  margin-top: auto;     /* Push to bottom */
+  text-align: center;   /* Center horizontally */
+  padding-bottom: 2rem; /* Some bottom space */
+}
+
+/* Back button styling */
+.back-button a {
+  background-color: white;
+  color: black;
+  margin-top: 5rem;     /* Adds space (~5 lines) below the last poem */
+  padding: 0.75rem 1.5rem;
+  border-radius: 5px;
+  text-decoration: none;
+  font-weight: bold;
+  cursor: pointer;
+  font-family: 'Courier New', Courier, monospace;
+  display: inline-block;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.back-button a:hover {
+  background-color: #000000;
+  color: white;
+}
