@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Python for Content Creators: Video, Music & Automation</title>
+  <style>
+    body {
+      font-family: Georgia, serif;
+      max-width: 800px;
+      margin: auto;
+      padding: 2rem;
+      line-height: 1.6;
+      background: #fff;
+      color: #222;
+    }
+    h1, h2, h3 {
+      color: #2c3e50;
+    }
+    code {
+      background-color: #f4f4f4;
+      padding: 2px 5px;
+      border-radius: 4px;
+      font-family: monospace;
+    }
+    nav {
+      margin-bottom: 2rem;
+      padding: 1rem;
+      background: #f0f0f0;
+      border-left: 4px solid #27ae60;
+    }
+    nav ul {
+      list-style: none;
+      padding-left: 0;
+    }
+    nav li {
+      margin-bottom: 0.5rem;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Python for Content Creators: Video Editing, Music Coding & Automation</h1>
+  <p>Discover how Python can be your creative assistant, helping you edit videos, compose music, and automate repetitive tasks — all with powerful libraries like Pygame, MoviePy, and Pydub.</p>
+
+  <nav>
+    <h2>Table of Contents</h2>
+    <ul>
+      <li><a href="#intro">1. Why Python for Content Creation?</a></li>
+      <li><a href="#pygame">2. Pygame: Interactive Multimedia & Music Coding</a></li>
+      <li><a href="#moviepy">3. MoviePy: Video Editing Made Easy</a></li>
+      <li><a href="#pydub">4. Pydub: Audio Manipulation in a Snap</a></li>
+      <li><a href="#automation">5. Automating Your Workflow with Python</a></li>
+      <li><a href="#getting-started">6. Getting Started: Installation & Setup</a></li>
+    </ul>
+  </nav>
+
+  <section id="intro">
+    <h2>1. Why Python for Content Creation?</h2>
+    <p>Python is a versatile, beginner-friendly programming language. For content creators, it’s a secret weapon — handling tasks like video editing, music coding, and automating boring repetitive jobs. This saves you time and unlocks new creative possibilities.</p>
+  </section>
+
+  <section id="pygame">
+    <h2>2. Pygame: Interactive Multimedia & Music Coding</h2>
+    <p>Pygame is primarily used for making games, but it’s great for creating interactive multimedia projects and even coding music. You can play sounds, build simple music sequencers, and create visuals.</p>
+    <p><strong>Example: Play a sound with Pygame</strong></p>
+    <pre><code>import pygame
+
+pygame.mixer.init()
+pygame.mixer.music.load('sound.mp3')
+pygame.mixer.music.play()
+
+while pygame.mixer.music.get_busy():
+    pygame.time.Clock().tick(10)
+</code></pre>
+  </section>
+
+  <section id="moviepy">
+    <h2>3. MoviePy: Video Editing Made Easy</h2>
+    <p>MoviePy lets you cut, join, add effects, and generate videos programmatically.</p>
+    <p><strong>Example: Cut a video clip</strong></p>
+    <pre><code>from moviepy.editor import VideoFileClip
+
+clip = VideoFileClip("input.mp4").subclip(10, 20)
+clip.write_videofile("output.mp4")
+</code></pre>
+  </section>
+
+  <section id="pydub">
+    <h2>4. Pydub: Audio Manipulation in a Snap</h2>
+    <p>Pydub simplifies working with audio — cutting, joining, exporting, and applying effects like fading or volume changes.</p>
+    <p><strong>Example: Fade out audio</strong></p>
+    <pre><code>from pydub import AudioSegment
+
+song = AudioSegment.from_file("song.mp3")
+faded = song.fade_out(3000)
+faded.export("faded_song.mp3", format="mp3")
+</code></pre>
+  </section>
+
+  <section id="automation">
+    <h2>5. Automating Your Workflow with Python</h2>
+    <p>Once you master these libraries, you can automate tedious tasks like batch converting videos, resizing images, or organizing your media files — freeing up more time for creativity.</p>
+  </section>
+
+  <section id="getting-started">
+    <h2>6. Getting Started: Installation & Setup</h2>
+    <p>Install the libraries easily with pip:</p>
+    <pre><code>pip install pygame moviepy pydub</code></pre>
+    <p>Make sure you have <code>ffmpeg</code> installed for MoviePy and Pydub to work properly. On Ubuntu:</p>
+    <pre><code>sudo apt-get install ffmpeg</code></pre>
+  </section>
+
+</body>
+</html>

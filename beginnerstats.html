@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Stats Without Tears: A Beginner's Guide to Scientific Statistics</title>
+  <style>
+    body {
+      font-family: Georgia, serif;
+      max-width: 800px;
+      margin: auto;
+      padding: 2rem;
+      line-height: 1.6;
+    }
+    h1, h2, h3 {
+      color: #2c3e50;
+    }
+    code {
+      background-color: #f4f4f4;
+      padding: 2px 4px;
+      border-radius: 4px;
+    }
+    nav {
+      margin-bottom: 2rem;
+      padding: 1rem;
+      background: #f0f0f0;
+      border-left: 4px solid #3498db;
+    }
+    nav ul {
+      list-style: none;
+      padding-left: 0;
+    }
+    nav li {
+      margin-bottom: 0.5rem;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Stats Without Tears: A Beginner's Guide to Scientific Statistics</h1>
+  <p>Feeling lost in a sea of formulas? You’re not alone. This beginner-friendly guide breaks down the core stats used in science — minus the math anxiety.</p>
+
+  <nav>
+    <h2>Table of Contents</h2>
+    <ul>
+      <li><a href="#descriptive-stats">1. Descriptive Statistics</a></li>
+      <li><a href="#variance-stddev">2. Variance & Standard Deviation</a></li>
+      <li><a href="#probability-distributions">3. Probability Distributions</a></li>
+      <li><a href="#t-tests">4. t-tests</a></li>
+      <li><a href="#anova">5. ANOVA (Analysis of Variance)</a></li>
+      <li><a href="#chi-square">6. Chi-Square Tests</a></li>
+      <li><a href="#correlation-regression">7. Correlation & Regression</a></li>
+    </ul>
+  </nav>
+
+  <section id="descriptive-stats">
+    <h2>1. Descriptive Statistics</h2>
+    <p>These are your go-to tools for summarizing data without panicking:</p>
+    <ul>
+      <li><strong>Mean:</strong> The average (add 'em up, divide by how many)</li>
+      <li><strong>Median:</strong> The middle value (good when outliers mess up your mean)</li>
+      <li><strong>Mode:</strong> The most popular number (literally)</li>
+    </ul>
+    <p><strong>Formula for Mean:</strong></p>
+    <code>μ = (Σx) / n</code>
+  </section>
+
+  <section id="variance-stddev">
+    <h2>2. Variance & Standard Deviation</h2>
+    <p>These tell you how spread out your data is. If your results are all over the place, these guys will snitch.</p>
+    <ul>
+      <li><strong>Variance:</strong> Average squared difference from the mean</li>
+      <li><strong>Standard Deviation:</strong> The square root of variance (aka more readable)</li>
+    </ul>
+    <p><strong>Formulas:</strong></p>
+    <code>σ² = (Σ(x - μ)²) / n</code><br>
+    <code>σ = √σ²</code>
+  </section>
+
+  <section id="probability-distributions">
+    <h2>3. Probability Distributions</h2>
+    <p>These show how likely different outcomes are. Think of them like data mood rings.</p>
+    <ul>
+      <li><strong>Normal Distribution:</strong> The classic bell curve</li>
+      <li><strong>Binomial Distribution:</strong> Great for yes/no data (e.g., coin flips)</li>
+      <li><strong>Poisson Distribution:</strong> Counts how often something happens in a fixed time/space</li>
+    </ul>
+    <p>The Normal Distribution formula:</p>
+    <code>f(x) = (1 / √(2πσ²)) * e<sup>-(x-μ)² / 2σ²</sup></code>
+  </section>
+
+  <section id="t-tests">
+    <h2>4. t-tests</h2>
+    <p>Want to know if two groups are *really* different or just being dramatic? Use a t-test.</p>
+    <p><strong>Formula for independent samples t-test:</strong></p>
+    <code>t = (X̄₁ - X̄₂) / √((s₁²/n₁) + (s₂²/n₂))</code>
+  </section>
+
+  <section id="anova">
+    <h2>5. ANOVA (Analysis of Variance)</h2>
+    <p>Like a t-test, but for three or more groups. Because scientists love comparing everything.</p>
+    <p><strong>F-ratio formula:</strong></p>
+    <code>F = variance between groups / variance within groups</code>
+  </section>
+
+  <section id="chi-square">
+    <h2>6. Chi-Square Tests</h2>
+    <p>Use this when your data is in categories, and you want to know if the results are random or actually say something.</p>
+    <p><strong>Formula:</strong></p>
+    <code>χ² = Σ((O - E)² / E)</code><br>
+    <em>Where O = observed, E = expected</em>
+  </section>
+
+  <section id="correlation-regression">
+    <h2>7. Correlation & Regression</h2>
+    <p>Ever wondered if one variable is dragging another around? These tools help you figure that out.</p>
+    <ul>
+      <li><strong>Correlation (r):</strong> Measures relationship strength (from -1 to +1)</li>
+      <li><strong>Linear Regression:</strong> Predicts values using a straight line — fancy!</li>
+    </ul>
+    <p><strong>Correlation formula:</strong></p>
+    <code>r = Σ[(x - X̄)(y - Ȳ)] / √Σ(x - X̄)² * Σ(y - Ȳ)²</code>
+    <p><strong>Regression equation:</strong></p>
+    <code>Y = a + bX</code>
+  </section>
+
+</body>
+</html>
