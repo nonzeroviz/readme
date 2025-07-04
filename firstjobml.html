@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>firstjobml – Diary Entry</title>
+  <link href="https://fonts.googleapis.com/css2?family=Special+Elite&family=Inter&display=swap" rel="stylesheet">
+  <style>
+    body {
+      background: url('images/backgroundfirstjob__upscaled_realesrgan.jpg') no-repeat center center fixed;
+      background-size: cover;
+      font-family: 'Special Elite';
+      margin: 0;
+      padding: 2rem;
+      color: #2e2e2e;
+      line-height: 1.6;
+    }
+
+    .entry {
+      max-width: 700px;
+      margin: auto;
+      background: #fffefc;
+      padding: 2rem;
+      border: 1px solid #ddd;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+      border-radius: 12px;
+    }
+
+    .date-time {
+      font-family: 'Special Elite', monospace;
+      font-size: 0.95rem;
+      color: #666;
+      margin-bottom: 1.5rem;
+    }
+
+    h1 {
+      font-family: 'Special Elite', monospace;
+      font-size: 2rem;
+      margin-bottom: 1rem;
+    }
+
+    h2 {
+      font-size: 1.2rem;
+      font-style: italic;
+      margin-top: 2rem;
+    }
+
+    .meta {
+      color: #888;
+      font-size: 0.9rem;
+    }
+
+    .highlight {
+      background: #fff7c2;
+      padding: 0.2rem 0.4rem;
+      border-radius: 4px;
+      font-family: monospace;
+    }
+
+    blockquote {
+      border-left: 3px solid #ccc;
+      padding-left: 1rem;
+      font-style: italic;
+      color: #444;
+      margin: 1rem 0;
+    }
+
+    code {
+      background: #eee;
+      padding: 2px 4px;
+      border-radius: 3px;
+      font-family: monospace;
+    }
+  </style>
+</head>
+<body>
+  <div class="entry">
+
+    <h1>firstjobml – Entry #001</h1>
+
+    
+    <p>
+    Monday, 8:37. Boss handed me a laptop and said, “Your first task is a simple four-class classification problem of undefined events, data recorded on three different sites — but the intern forgot to note down which was recorded where. There are some outliers in the data, like 20%, unknown. Also, there’s an additional dataset with only outliers, but they don’t differ that much from the original data. Coffee black, no sugar. Good luck.” Then he disappeared into a Slack thread I was never invited to.
+    </p>
+
+    <p>
+    So I sat there, the newest Data Scientist™ in a company I still don't know how to pronounce, pretending I wasn’t shaking, pretending I knew what Slack even means. My onboarding consisted of a dying Notion doc and a ghosted GitHub repo — about two-thirds of which was clearly copy-pasted from various Meta coworkers’ profiles. But hey — I had Jupyter, caffeine, and my boss’s words had triggered a while(true)-earworm of Big Smoke ordering food at Taco Bell while Ryder and CJ are already opening car windows in anticipation of a minor stomach breakout situation.
+    </p>
+
+    <p>
+    The data? Beautifully uncooperative. Four classes, and none of them seemed to differ from the others. A handful of outliers that announced themselves like party crashers, and a few more that were sneaking around in the crowd, unnamed, unlabeled, and ready to sabotage my metrics. I first checked for the most standard statistics like mean and variance, by feature, 12 features in total, by row - by data point that is, ungrouped and grouped by label, as KDE, PCA and tSNE - no chance. they all looked the same.
+    </p>
+
+    
+    <h1> get overview, climb radio tower – Entry #002</h1>
+
+    <p>
+    Supervised learning is like trying to teach a dog to sort your laundry, but with labeled data. You show the model examples — here’s a sock, here’s a T-shirt, here’s an “outlier” (i.e., a cheese wrapper you accidentally washed) — and it learns to guess what’s what. The key point: we provide both the input data and the correct output (the “label”), and the model learns a mapping between the two. If this sounds simple, don’t worry — it stops making sense as soon as your data starts lying to you. In my case, I had four classes, zero idea what they meant, and a 20% chance that any given data point was secretly part of the Joker's origin story.
+    </p>
+
+    <p>
+    First thing I did was panic-Google “how to look confident while EDA-ing.” Second thing I did was throw every plotting function I knew at the data like a medieval catapult. Matplotlib, Seaborn, Pandas built-ins — suddenly I was the Bob Ross of confusion matrices, painting little happy violin plots and boxplots that whispered “your class balance is a joke” in a soothing voice. Scatterplots looked like static from a cursed CRT TV. Histograms revealed nothing but the absence of God in feature 7. Still, something shifted. I started seeing shapes. Patterns. Ghosts, maybe.
+    </p>
+
+    <p>
+    Then came PCA, my old friend. Principal Component Analysis, or as I now call it, "how to flatten a crime scene into two dimensions so it fits inside your Jupyter cell." Everything compressed into beautifully abstract clumps — two of them played nice, one hovered ominously on the edge, and the fourth looked like it wandered in from a completely different dataset. Then I tried t-SNE, which was like PCA after taking psychedelics at a hacker camp. No structure, but vibes. Pure vibes. Somehow, the liars glowed. Auras of statistical guilt. Bless.
+    </p>
+
+    
+    <h1> no more psychedelics – Entry #003</h1>
+
+    <p>
+    But as I stared at those glowing clusters, a dark truth emerged: I had no idea what any of it meant. PCA had lied to me with clean axes and false confidence. t-SNE seduced me with chaos art, then ghosted. The “patterns” I saw? Just my brain doing pareidolia with datapoints. A dolphin here, a class 3 blob there, but no story. No structure. Just vibes. And not the good kind — the "are we sure this isn’t just noise pretending to be meaning?" kind. Bless, indeed.
+    </p>
+
+    <p>
+    So I did what any caffeine-drenched impostor would do. I stopped trusting vibes and started throwing horsepower at the problem. Feature engineering. Correlation matrices. Z-scores. I whispered sweet nothings to `sklearn.preprocessing`. I built weird composite features out of boredom and spite. Some of them worked. Most of them made things worse. But deep down I knew: if I couldn’t find patterns, I was gonna force some into existence like a bored conspiracy theorist with a statistics degree and way too many scatter plots.
+    </p>
+
+    <p>
+    At some point I hit the wall. The kind of wall that smells like burnt RAM and existential dread. I had created 87 new features, most of them garbage, a few of them suspiciously predictive — like, “maybe this dataset is haunted” predictive. My models? Confused. Logistic Regression stared blankly. Decision Trees overfit so hard they started writing fanfiction. Random Forest tried to help but ended up gossiping with the noise. It was time. No more vibes. No more cute graphs. No more psychedelics. It's time for a little... Kernel Trick.
+    </p>
+
+    <h1> i dont know what youre doing but please dont stop – Entry #004</h1>
+
+    <p>
+    Kernel Trick. Sounds like something you'd find scribbled in the back pages of a wizard’s notebook. But no — it’s just SVM being petty about dimensions. See, in the flatlands of normal space, everything overlaps like a Monday morning Slack channel. But lift that data into a higher dimension — poof, linearly separable. It’s like taking your tangled earbuds and flinging them into the fourth dimension so they sort themselves out. I didn’t question it. I just nodded and prayed to the gods of Hilbert space.
+    </p>
+
+    <p>
+    The RBF kernel was my weapon of choice. It mapped the data with the cold indifference of a cryptic oracle. I couldn’t interpret anything, but it was slicing through the noise like a samurai in a dishwasher commercial. Suddenly, those messy clusters from t-SNE weren’t so funny anymore. The SVM drew boundaries like it knew where the bodies were buried. Outliers got exiled. The four classes started playing nice. It was like watching a conspiracy chart organize itself, one support vector at a time.
+    </p>
+
+    <p>
+    And no, I still don’t know how it works. I just know that it does. Behind the math, beyond the margins, there’s this dark SVM magic humming in the background, whispering “trust the kernel.” So I did. For the first time, the predictions didn’t make me want to fake a power outage and switch careers. The model had boundaries. I had boundaries. And that, I think, is what they call growth.
+    </p>
+
+    <h1> clearing vision – Entry #005</h1>
+
+    <p>
+    Patterns were forming. Not good ones, but enough to fake a screenshot. The model was less chaotic, the classes looked like they finally understood the assignment — which of course meant it was time to ruin everything by remembering the thing I was avoiding: the outliers. The original dataset was already 20% rats in the walls, and on top of that, someone handed me a second, separate file: “known outliers.” As in, already caught. Already confessed. The kind of dataset that feels like it belongs in a forensics lab, not a notebook.
+    </p>
+
+    <p>
+    I spun up a GMM — Gaussian Mixture Model — to learn the vibe from that known-outlier dump. Fit it. Prayed. Whispered “unsupervised forgiveness” into the terminal. Then I turned it loose on the full dataset and asked it to find the 20 most likely outliers hiding among the rest. Not perfect. Definitely not correct. But enough to stall for two days and start a Trello card labeled "High Priority". The GMM didn’t care. It gave me numbers. I accepted them like a desperate oracle-reading peasant. Into the pipeline they went.
+    </p>
+
+    <p>
+    Which bought me time for Plan B: locate the cleanest intern repo in a sister department and jam it open. Technically not hacking. Just aggressively borrowing bandwidth while their lunch break stretched mysteriously long. I flooded their system with cross-validation requests until their OS started begging for mercy. When they DMed in a panic, I told them I'd release their CPU if they dropped their outlier pipeline. It worked. I now had a half-decent detection model and a vague sense of guilt. But also a Friday meeting to survive. Worth it.
+    </p>
+
+    <h1> finally a baseline. somewhat – Entry #006</h1>
+
+    <p>
+    The moment I thought things were stabilizing, the dataset whispered another secret. Row-wise means — just a dumb check to see if my inputs were breathing — suddenly split cleanly into three obvious groups. Not in a fun “discovery” way. In a “hey, did no one tell you this was collected on three different sites?” kind of way. I stared at the plot like it had insulted my family. Three blobs. Three sites. But my labels? They weren’t location tags. They were events. Which meant one of two things: either the sites were randomly recording whatever, or each site had a personality disorder and a favorite class.
+    </p>
+
+    <p>
+    Which brought me to the existential panic: is the location a confounder? Is my model just learning GPS coordinates and pretending to be smart? If I removed the grouping signal, would performance drop? If I kept it, was I just memorizing geography? Either way, I was tired. So I made the only responsible decision: I ignored the problem and ran another GMM. Clustering as a baseline. Unsupervised shrugging. I told myself it was a smart benchmark. I told myself it was for science. I mostly just wanted a number.
+    </p>
+
+    <p>
+    The number was 60% accuracy. That’s it. That’s the baseline. I printed it. Framed it. Sat with it. Stared at it like it owed me rent. Technically better than guessing. Emotionally devastating. But now I had a number to beat. A sad, fragile number that whispered “you tried.” So I took a break, refilled my coffee, and started plotting my revenge.
+    </p>
+
+    <h1> revenge of the feature matrix – Entry #007</h1>
+
+    <p>
+    The baseline sat there like a mediocre Tinder match. Not great, not awful, just deeply uninspiring. But it gave me something to obsess over. Something to defeat. So I turned back to the feature matrix like a man returning to the scene of his own failure. My preprocessing pipeline was a patchwork of regret. Some features were born from genuine statistical reasoning. Most were born from “what if I divide these two columns and hope it means something?” chaos. But it was time to stop guessing. Time to engineer. Or at least, engineer harder.
+    </p>
+
+    <p>
+    I dug into correlations. Normalized, scaled, z-scored the life out of everything. I tried polynomials. Ratios. Binarizations that probably broke some kind of machine learning Geneva convention. I stared at distributions until they started blinking back. Somewhere in the mess, a few features whispered promise. Just enough signal, just enough weirdness, to convince me I wasn’t entirely wasting my time. I added them in, dropped the obvious noise, and duct-taped the matrix back together with a fresh layer of `StandardScaler` and blind hope.
+    </p>
+
+    <p>
+    Then I retrained. Same setup, slightly smarter inputs. Accuracy jumped — barely. Like 64%. But the vibe? Better. The model wasn’t just guessing anymore, it was hesitating, which felt like growth. Confusion matrices looked less like abstract art. Precision and recall still fought like divorced parents, but hey — progress. Maybe not a good model yet. But no longer a disgrace to its ancestors. That would do. For now.
+    </p>
+
+
+    <p class="meta">— End of Entry</p>
+  </div>
+</body>
+</html>
