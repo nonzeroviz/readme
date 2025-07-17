@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Image Upscaling from scratch: Pixel manipulation matters!</title>
+  <style>
+    body { font-family: Arial, sans-serif; line-height: 1.7; padding: 2rem; max-width: 900px; margin: auto; }
+    pre { background: #f4f4f4; padding: 1rem; overflow-x: auto; }
+    img { max-width: 100%; border: 1px solid #ccc; margin: 1rem 0; }
+    h2 { border-bottom: 1px solid #eee; padding-bottom: 0.3rem; }
+  </style>
+</head>
+<body>
+  <h1>Image Upscaling from scratch: Pixel manipulation matters!</h1>
+
+  <p>From AI art generators and super-resolution filters to the crisp 4K visuals in your video editor — everything starts with pixels. In this post, we'll dive into the fundamentals of pixel manipulation using Python, walking through how simple interpolation methods can upscale images, and where modern deep learning methods like <a href="https://github.com/xinntao/Real-ESRGAN" target="_blank">Real-ESRGAN</a> take over. </p>
+
+  <p>Why should you care? Well, whether you're a content creator, designer, ML engineer, or just trying to make your 240p meme look vaguely respectable, understanding how pixels are transformed opens doors — from classical editing to training generative models.</p>
+
+<section>
+  <h2>What Are Images, Really?</h2>
+
+  <p>Sure, we all know what an image is — it's that cat meme, your phone wallpaper, the thumbnail you forgot to optimize. But under the hood, every image is just a grid of tiny colored squares called <strong>pixels</strong>. And each of those pixels is defined by three numbers: Red, Green, and Blue (RGB). That's it. Welcome to the matrix.</p>
+
+  <p>These pixels are stored in files using different formats — each with its own way of compressing, saving, and occasionally ruining your precious image quality. Let's unpack that a bit.</p>
+
+  <h3>How Are Images Stored?</h3>
+
+  <p>Digital image formats differ mainly in two ways: how they compress data, and whether they preserve exact pixel values. Here’s a comparison:</p>
+
+  <table border="1" cellpadding="8" cellspacing="0">
+  <thead>
+    <tr>
+      <th>Format</th>
+      <th>Compression</th>
+      <th>Transparency</th>
+      <th>Editable Pixels?</th>
+      <th>What It’s Good For</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>JPEG (.jpg/.jpeg)</strong></td>
+      <td><strong>Lossy</strong> – throws away details to shrink size</td>
+      <td>❌ Nope</td>
+      <td>❌ Not reliably</td>
+      <td>Photos, web images, social posts</td>
+    </tr>
+    <tr>
+      <td><strong>PNG</strong></td>
+      <td><strong>Lossless</strong> – compresses but keeps all data</td>
+      <td>✅ Yes (alpha channel)</td>
+      <td>✅ Yes</td>
+      <td>Logos, icons, UI elements</td>
+    </tr>
+    <tr>
+      <td><strong>WEBP</strong></td>
+      <td><strong>Both!</strong> – lossy & lossless options</td>
+      <td>✅ Yes</td>
+      <td>➖ Sort of</td>
+      <td>Modern web usage (replaces JPEG/PNG)</td>
+    </tr>
+    <tr>
+      <td><strong>PPM (P6)</strong></td>
+      <td><strong>None</strong> – raw RGB data, uncompressed</td>
+      <td>❌ No</td>
+      <td>✅ 100%</td>
+      <td>Image processing, research, pixel hacking</td>
+    </tr>
+  </tbody>
+  </table>
+
+  <h3>Why Use PPM?</h3>
+<p>
+  <strong>PPM</strong> stands for <em>Portable PixMap</em>, and it’s one of the most primitive — yet strangely elegant — image formats still kicking around. There’s no compression. No metadata. No alpha (transparency). Just rows and rows of raw, unfiltered RGB pixel data, packed in a format so basic, you can literally open it in a text editor and see the color values (in its ASCII version). 
+</p>
+
+  <p>Here’s how a binary PPM file (P6 variant) is structured:</p>
+
+  <pre><code>
+  P6
+  192 128
+  255
+  [binary RGB bytes...]
+  </code></pre>
+
+  <ul>
+    <li><code>P6</code>: Magic number identifying the format</li>
+    <li><code>192 128</code>: Width and height in pixels</li>
+    <li><code>255</code>: Max color value (i.e. 8-bit color)</li>
+    <li>Then: pixel data as raw bytes (R, G, B, R, G, B...)</li>
+  </ul>
+
+  <p>When we load a PPM into Python using NumPy, we get an array like this:</p>
+
+  <pre><code class="language-python">img = np.array([
+  [[255, 0, 0],   [0, 255, 0]],
+  [[0, 0, 255],   [255, 255, 255]]
+])</code></pre>
+
+  <p>This array has shape <code>(height, width, 3)</code> and contains pure RGB data for each pixel — perfect for manipulation. That’s why, in our image upscaling pipeline, we convert everything to PPM before doing any math.</p>
+
+  <p>
+  Now, compare that to something like a <strong>PNG</strong> file. PNG is lossless (which is great), but it uses <em>DEFLATE</em> compression internally — a combination of LZ77 and Huffman coding. That means if you want to manipulate a PNG pixel-by-pixel, you first need to decompress the file, decode its structure, possibly handle color profiles and gamma correction, and maybe deal with an alpha channel for transparency. Then you get your RGB (or RGBA) array. And when you're done? You have to reverse that entire process to save it again — without introducing errors.
+  </p>
+
+  <p>
+  It’s not impossible, but it’s like trying to edit a PDF using Notepad. PPM, on the other hand, is brutally simple: what you see is (almost literally) what you get. That makes it ideal as a clean staging ground in our pixel manipulation workflow.
+  </p>
+
+  <h3>From Storage to Manipulation</h3>
+  <p>Image formats like JPEG or PNG are great for storage and sharing, but once we want to manipulate pixel values directly — say, to upscale an image using our own algorithm — we need to strip away the compression and get to the raw pixels. PPM lets us do just that.</p>
+
+  <p>Here's how we convert any image to PPM using FFmpeg in Python:</p>
+
+  <pre><code class="language-python">def convert_to_ppm(input_path, ppm_path):
+    subprocess.run([
+        'ffmpeg', '-y', '-i', input_path,
+        '-frames:v', '1', '-update', '1',
+        '-pix_fmt', 'rgb24', ppm_path
+    ], check=True)</code></pre>
+
+  <p>Later, we load this PPM into a NumPy array, perform our upscaling method of choice, and save it back out to your favorite format (JPEG, PNG, etc.).</p>
+
+  <p>
+  <strong>By the way</strong>, FFmpeg is not exactly the most intuitive way to convert an image to PPM — but it <em>is</em> one of the most versatile. Yes, it's technically a video processing tool. And yes, it has a cryptic command-line interface that looks like it was designed to confuse you on purpose. But once you get the hang of it, FFmpeg becomes your Swiss army knife for all things media.
+  </p>
+
+  <p>
+  In our case, FFmpeg helps us flatten any image format — PNG, JPEG, even animated formats like WebP — into a raw, binary PPM file that’s perfect for pixel-level manipulation. It’s fast, reliable, and does all the hard decoding work for us.
+  </p>
+
+  <pre><code>
+  ffmpeg -y -i input.jpg -frames:v 1 -update 1 -pix_fmt rgb24 output.ppm
+  </code></pre>
+
+  <p>Let’s break that down:</p>
+
+  <ul>
+  <li><code>-y</code>: Overwrites the output file without asking. Necessary when scripting.</li>
+  <li><code>-i input.jpg</code>: The input image. FFmpeg supports just about any format here.</li>
+  <li><code>-frames:v 1</code>: Tells FFmpeg to output just one video frame. (Yes, even static images are handled as a stream of frames.)</li>
+  <li><code>-update 1</code>: Ensures that only the latest frame is written if you're using this in a loop or watch folder — not critical here, but safe to include.</li>
+  <li><code>-pix_fmt rgb24</code>: Converts the pixel format to 24-bit RGB — exactly what PPM expects (no alpha channel, no weird color spaces).</li>
+  </ul>
+
+  <p>
+  While FFmpeg might feel like using a rocket launcher to open a soda can, it gives us consistent, clean RGB data every time — and can technically also be used to work with video material.
+  </p>
+  
+  <p>
+  So, we’ve used FFmpeg to convert our image into a raw PPM file. Now it’s time to actually get our hands on the pixels. That’s where <code>load_ppm()</code> comes in:
+  </p>
+
+  <pre><code class="language-python">
+    def load_ppm(filename):
+        with open(filename, 'rb') as f:
+            assert f.readline().strip() == b'P6'
+            while True:
+                line = f.readline()
+                if not line.startswith(b'#'):
+                    width, height = map(int, line.strip().split())
+                    break
+            maxval = int(f.readline().strip())
+            assert maxval == 255
+            raw_data = f.read(width * height * 3)
+        return np.frombuffer(raw_data, dtype=np.uint8).reshape((height, width, 3))
+  </code></pre>
+
+  <p>
+  This function opens a binary PPM file (specifically the <code>P6</code> format), reads its header, and pulls out the raw RGB pixel data. At this point, we have a clean NumPy array containing raw pixel data. Every pixel is an RGB triplet, and every value is an integer from 0 to 255. This is where the fun starts — and where we can finally begin playing with upscaling.
+  </p>
+
+
+  <h2>How Pixel Manipulation Works (Using Upscaling)</h2>
+
+  <p>
+  Let’s say you have a 100×100 image and want to scale it up to 200×200. You can’t just invent new pixels out of thin air — well, actually, you <em>can</em>, but you have to make smart guesses. That’s where <strong>interpolation</strong> comes in. Interpolation is the act of estimating new pixel values between the known ones, based on patterns, gradients, and proximity. In practice, it’s just math — sometimes simple, sometimes complex — that tries to preserve edges, colors, and detail without introducing too much blur or blockiness.
+  </p>
+
+  <p>
+  Today, in 2025, image upscaling is a daily reality for content creators, designers, video editors, and even your average social media app. Whether you're enhancing a blurry TikTok frame or cleaning up an AI-generated thumbnail for YouTube, you're relying — knowingly or not — on upscaling algorithms. <strong>CapCut</strong> and <strong>Adobe Premiere</strong> have integrated AI-driven upscaling options. Adobe, for example, uses its "Enhance" feature inside Photoshop and Lightroom to upscale small or low-res images using machine learning. In video workflows, tools like <strong>Topaz Video Enhance AI</strong> and <strong>DaVinci Resolve's Super Scale</strong> can take 1080p content and scale it beautifully to 4K and beyond. And yes, the quality can be jaw-dropping when done right.
+  </p>
+
+  <p>
+  One of the more powerful open-source tools in this space is <a href="https://github.com/xinntao/Real-ESRGAN" target="_blank"><strong>Real-ESRGAN</strong></a> — a deep learning model trained on thousands of high-res images to reconstruct photo-realistic textures at higher resolutions. It's the heavy hitter we’ll use later in this article to compare against our basic techniques. But before we unleash a neural net trained on a GPU farm, let’s go back to basics. Because understanding the simpler methods — like nearest neighbor or bilinear interpolation — helps you appreciate what the fancy models are really doing behind the scenes and on top of that can be highly inspiring as well as educative with regards to <strong>generative art</strong>.
+  </p>
+
+  <p>
+  So, let’s start small. What happens when you scale up an image by just copying pixels? Welcome to the world of <em>nearest neighbor interpolation</em>.
+  </p>
+
+  <h2>Upscaling Methods Explained</h2>
+
+  <p>
+  The following image serves as base. It was generated using DeepAI. When having a closer look at the image, some noise around the moon can be detected.  
+  </p>
+  
+  <div style="display: flex; justify-content: center; gap: 40px;">
+  <div style="display: flex; flex-direction: column; align-items: center;">
+    <img src="imageupscaleing1_img/mountain_moon_or.jpg" alt="Base Image" style="width: 400px; height: 400px; object-fit: cover;">
+    <p style="margin-top: 8px;"><em>Original</em></p>
+  </div>
+  <div style="display: flex; flex-direction: column; align-items: center;">
+    <img src="imageupscaleing1_img/moon_zoomed.png" alt="Zoomed in" style="width: 400px; height: 400px; object-fit: cover;">
+    <p style="margin-top: 8px;"><em>Zoomed</em></p>
+  </div>
+  </div>
+
+
+  <h3>1. Nearest Neighbor Interpolation</h3>
+  
+  <p>The most basic method. Just copy the closest pixel. No blending. No subtlety. Perfect if you like your images chunky and your upscaling fast. Surprisingly, it still has its place — especially in pixel art or when you're in a rush and don't care about artifacts.</p>
+  
+  <pre><code>
+    def nearest_neighbor_interpolate(img, scale):
+
+    h, w, c = img.shape
+    new_h, new_w = int(h * scale), int(w * scale)
+
+    result = np.zeros((new_h, new_w, c), dtype=np.uint8)
+
+    for i in range(new_h):
+        for j in range(new_w):
+            # Map output pixel (i,j) back to input coordinates
+            x = int(round(i / scale))   # Row in input
+            y = int(round(j / scale))   # Column in input
+
+            # Clamp coordinates to stay in bounds
+            x = min(x, h - 1)
+            y = min(y, w - 1)
+
+            # Copy nearest pixel value directly
+            result[i, j] = img[x, y]
+
+    return result
+</code></pre>
+
+  <p>So what does this do exactly?</p>
+  <ul>
+  <li>For each new pixel in the enlarged image, it simply finds the closest pixel in the original image.</li>
+  <li>No guessing, no interpolation — it just clones the nearest existing color.</li>
+  <li>This creates that famous “blocky” look, with jagged edges and hard transitions.</li>
+  </ul>
+
+  <div style="display: flex; justify-content: center; gap: 40px; margin-top: 20px;">
+  <div style="display: flex; flex-direction: column; align-items: center;">
+    <img 
+      src="imageupscaleing1_img/moon_or.png" 
+      alt="Original" 
+      style="width: 400px; height: 400px; object-fit: cover; object-position: top;"
+    >
+    <p style="margin-top: 8px;"><em>Original</em></p>
+  </div>
+  <div style="display: flex; flex-direction: column; align-items: center;">
+    <img 
+      src="imageupscaleing1_img/moon_nearest_2.png" 
+      alt="Nearest Neighbor Upscaled" 
+      style="width: 400px; height: 400px; object-fit: cover;"
+    >
+    <p style="margin-top: 8px;"><em>Upscaled (Nearest Neighbor)</em></p>
+  </div>
+  </div>
+
+  <p>
+  To better understand what the nearest neighbor algorithm is actually doing,
+  we created a simple 5×5 pixel test image. Each pixel has a distinct color. 
+  When upscaled, the effect of copying the nearest pixel becomes much clearer — 
+  blocks of color are stretched without blending or smoothing.
+  </p>
+
+  <div style="display: flex; justify-content: center; gap: 80px; margin-top: 20px;">
+  <div style="display: flex; flex-direction: column; align-items: center;">
+    <img 
+      src="imageupscaleing1_img/5x5_test.png" 
+      alt="5x5 Original Test Image" 
+      style="width: 300px; height: 300px; image-rendering: pixelated; object-fit: contain;"
+    >
+    <p style="margin-top: 8px;"><em>Original 5×5 Image</em></p>
+    </div>
+    <div style="display: flex; flex-direction: column; align-items: center;">
+    <img 
+      src="imageupscaleing1_img/5x5_t_upscaled_2x_nearest.jpg" 
+      alt="5x5 Upscaled (Nearest Neighbor)" 
+      style="width: 300px; height: 300px; image-rendering: pixelated; object-fit: contain;"
+    >
+    <p style="margin-top: 8px;"><em>Upscaled 2× (Nearest Neighbor)</em></p>
+  </div>
+  </div>
+
+
+
+  <h3>2. Box Filter Interpolation</h3>
+  
+  <p>
+  Box filtering smooths out pixel transitions by averaging the 4 closest neighboring pixels.
+  It’s a quick and slightly smarter method than nearest neighbor — you get fewer jagged edges, but at the cost of some sharpness.
+  </p>
+
+  <pre style="background:#f4f4f4; padding:10px; border-radius:5px; overflow-x:auto;">
+  <code>def box_filter_interpolate(img, scale):
+    """Upscale using simple box filtering (mean of 4 nearest neighbors)."""
+    h, w, c = img.shape
+    new_h, new_w = h * scale, w * scale
+    upscaled = np.zeros((new_h, new_w, c), dtype=np.uint8)
+
+    for i in range(new_h):
+        for j in range(new_w):
+            # Map back to original coordinates
+            x = i / scale
+            y = j / scale
+
+            # Get the 4 nearest neighbors (floor and ceil)
+            x0 = int(np.floor(x))
+            x1 = min(x0 + 1, h - 1)
+            y0 = int(np.floor(y))
+            y1 = min(y0 + 1, w - 1)
+
+            # Average their RGB values
+            pixel = (
+                img[x0, y0].astype(np.uint16) +
+                img[x0, y1].astype(np.uint16) +
+                img[x1, y0].astype(np.uint16) +
+                img[x1, y1].astype(np.uint16)
+            ) // 4
+
+            upscaled[i, j] = pixel.astype(np.uint8)
+
+    return upscaled
+  </code>
+  </pre>
+
+  <p>
+  What the algorithm does:
+  </p>
+  <ul>
+  <li>For each new pixel, it calculates the average of the 4 nearest neighbors in the original image.</li>
+  <li>This smooths transitions compared to nearest neighbor, reducing jagged edges.</li>
+  <li>However, this method can blur fine details slightly.</li>
+  </ul>
+
+  <div style="display: flex; justify-content: center; gap: 40px; margin-top: 20px;">
+  <div style="display: flex; flex-direction: column; align-items: center;">
+    <img 
+      src="imageupscaleing1_img/moon_or.png" 
+      alt="Original" 
+      style="width: 400px; height: 400px; object-fit: cover; object-position: top;">
+    <p style="margin-top: 8px;"><em>Original</em></p>
+  </div>
+  <div style="display: flex; flex-direction: column; align-items: center;">
+    <img 
+      src="imageupscaleing1_img/moon_box_2.png" 
+      alt="Box Filter Upscaled" 
+      style="width: 400px; height: 400px; object-fit: cover;">
+    <p style="margin-top: 8px;"><em>Upscaled (Box Filter)</em></p>
+  </div>
+  </div>
+
+  <p>
+  Let's observe the Box Filter Effect in the 5x5 pixel version:
+  </p>
+
+  <div style="display: flex; justify-content: center; gap: 80px; margin-top: 20px;">
+  <div style="display: flex; flex-direction: column; align-items: center;">
+    <img 
+      src="imageupscaleing1_img/5x5_test.png" 
+      alt="5x5 Original Test Image" 
+      style="width: 300px; height: 300px; image-rendering: pixelated; object-fit: contain;"
+    >
+    <p style="margin-top: 8px;"><em>Original 5×5 Image</em></p>
+    </div>
+    <div style="display: flex; flex-direction: column; align-items: center;">
+    <img 
+      src="imageupscaleing1_img/5x5_t_upscaled_2x_box.jpg" 
+      alt="5x5 Upscaled (Box Filter)" 
+      style="width: 300px; height: 300px; image-rendering: pixelated; object-fit: contain;"
+    >
+    <p style="margin-top: 8px;"><em>Upscaled 2× (Nearest Neighbor)</em></p>
+  </div>
+  </div>
+
+
+  <h3>3. Bilinear Interpolation</h3>
+  <p>This method uses four nearby pixels and blends them based on distance. It’s like creating a weighted average of nearby colors.</p>
+  <pre><code>def bilinear_interpolate(img, scale):
+    ...
+</code></pre>
+
+  <p><strong>Before:</strong></p>
+  <img src="img/before_bilinear.jpg" alt="Before bilinear">
+  <p><strong>After (Bilinear):</strong></p>
+  <img src="img/after_bilinear.jpg" alt="After bilinear">
+
+  <h3>4. Bicubic Interpolation</h3>
+  <p>Smoother than bilinear and uses a 4x4 neighborhood. It's computationally heavier but the results are cleaner — especially around edges.</p>
+  <pre><code>def bicubic_interpolate(img, scale):
+    return zoom(img, (scale, scale, 1), order=3).astype(np.uint8)</code></pre>
+
+  <p><strong>Before:</strong></p>
+  <img src="img/before_bicubic.jpg" alt="Before bicubic">
+  <p><strong>After (Bicubic):</strong></p>
+  <img src="img/after_bicubic.jpg" alt="After bicubic">
+
+  <h3>5. Lanczos Interpolation</h3>
+  <p>High-end method. It uses a sinc-based kernel and looks at many pixels. Preserves edges beautifully, but it’s slower. It’s what Photoshop uses when it’s trying to impress you.</p>
+  <pre><code>def lanczos_interpolate(img, scale):
+    pil_img = Image.fromarray(img)
+    new_size = (int(img.shape[1] * scale), int(img.shape[0] * scale))
+    resized = pil_img.resize(new_size, resample=Image.LANCZOS)
+    return np.array(resized)</code></pre>
+
+  <p><strong>Before:</strong></p>
+  <img src="img/before_lanczos.jpg" alt="Before lanczos">
+  <p><strong>After (Lanczos):</strong></p>
+  <img src="img/after_lanczos.jpg" alt="After lanczos">
+
+  <h3>6. Real-ESRGAN (Deep Learning-Based)</h3>
+  <p>And now, the heavyweight champ. <strong>Real-ESRGAN</strong> is a deep neural network trained on a large dataset to generate realistic high-res images from low-res ones. It doesn’t just interpolate — it <em>hallucinates</em> details.</p>
+
+  <p>Installation and usage are beyond this article’s scope, but you can check it out here: <a href="https://github.com/xinntao/Real-ESRGAN" target="_blank">Real-ESRGAN GitHub</a>.</p>
+
+  <p><strong>Before:</strong></p>
+  <img src="img/before_realesrgan.jpg" alt="Before realesrgan">
+  <p><strong>After (Real-ESRGAN):</strong></p>
+  <img src="img/after_realesrgan.jpg" alt="After realesrgan">
+
+  <h2>Wrapping Up: Why Pixel Manipulation Matters</h2>
+  <p>What started as a humble for-loop scaling a few pixels can easily lead into big-league topics like:</p>
+  <ul>
+    <li>🖼️ Super-resolution for restoring old photos</li>
+    <li>📹 AI-powered video upscaling and generation</li>
+    <li>🎨 Generative art and image synthesis</li>
+    <li>🔍 Medical imaging and scientific visualization</li>
+  </ul>
+
+  <p>Whether you're building a creative tool or training the next stable diffusion model, the ability to <strong>read, modify, and create pixels</strong> is foundational. So next time you see a high-res anime face that started as a blurry blob — just remember: it all began with manipulating some numbers in an array.</p>
+
+</body>
+</html>
