@@ -114,7 +114,9 @@
 
   <p>Here's how we convert any image to PPM using FFmpeg in Python:</p>
 
-  <pre><code class="language-python">def convert_to_ppm(input_path, ppm_path):
+  <pre><code class="language-python">import subprocess
+    
+def convert_to_ppm(input_path, ppm_path):
     subprocess.run([
         'ffmpeg', '-y', '-i', input_path,
         '-frames:v', '1', '-update', '1',
@@ -213,8 +215,8 @@
   
   <p>The most basic method. Just copy the closest pixel. No blending. No subtlety. Perfect if you like your images chunky and your upscaling fast. Surprisingly, it still has its place — especially in pixel art or when you're in a rush and don't care about artifacts.</p>
   
-  <pre><code>
-    def nearest_neighbor_interpolate(img, scale):
+  <pre><code>def nearest_neighbor_interpolate(img, scale):
+ 
 
     h, w, c = img.shape
     new_h, new_w = int(h * scale), int(w * scale)
@@ -224,8 +226,8 @@
     for i in range(new_h):
         for j in range(new_w):
             # Map output pixel (i,j) back to input coordinates
-            x = int(round(i / scale))   # Row in input
-            y = int(round(j / scale))   # Column in input
+            x = int(np.floor(i / scale))   # Row in input
+            y = int(np.floor(j / scale))   # Column in input
 
             # Clamp coordinates to stay in bounds
             x = min(x, h - 1)
@@ -267,7 +269,8 @@
   To better understand what the nearest neighbor algorithm is actually doing,
   we created a simple 5×5 pixel test image. Each pixel has a distinct color. 
   When upscaled, the effect of copying the nearest pixel becomes much clearer — 
-  blocks of color are stretched without blending or smoothing.
+  blocks of color are stretched without blending or smoothing and the original image becomes bigger. The algorithm finds and copies the color values from the original pixel and reuses them in proportion to the scaling factor.
+  (Side fact: On some screens the upscaled image appeared to have subtle differences in pixel colors. This can be considered hardware-related noise.) 
   </p>
 
   <div style="display: flex; justify-content: center; gap: 80px; margin-top: 20px;">
@@ -301,9 +304,11 @@
   <pre style="background:#f4f4f4; padding:10px; border-radius:5px; overflow-x:auto;">
   <code>def box_filter_interpolate(img, scale):
     """Upscale using simple box filtering (mean of 4 nearest neighbors)."""
+
     h, w, c = img.shape
-    new_h, new_w = h * scale, w * scale
-    upscaled = np.zeros((new_h, new_w, c), dtype=np.uint8)
+    new_h, new_w = int(h * scale), int(w * scale)
+
+    result = np.zeros((new_h, new_w, c), dtype=np.uint8)
 
     for i in range(new_h):
         for j in range(new_w):
@@ -325,9 +330,9 @@
                 img[x1, y1].astype(np.uint16)
             ) // 4
 
-            upscaled[i, j] = pixel.astype(np.uint8)
+            result[i, j] = pixel.astype(np.uint8)
 
-    return upscaled
+    return result
   </code>
   </pre>
 
@@ -358,7 +363,8 @@
   </div>
 
   <p>
-  Let's observe the Box Filter Effect in the 5x5 pixel version:
+  Let's observe the Box Filter Effect in the 5x5 pixel version: The new color for each pixel is calculated based on the colors of the four nearest neighbors.
+  This results in a very quirky color mix for the 5x5 test image. (Side fact: The four nearest neighbors include the original pixel itself.)
   </p>
 
   <div style="display: flex; justify-content: center; gap: 80px; margin-top: 20px;">
@@ -376,7 +382,7 @@
       alt="5x5 Upscaled (Box Filter)" 
       style="width: 300px; height: 300px; image-rendering: pixelated; object-fit: contain;"
     >
-    <p style="margin-top: 8px;"><em>Upscaled 2× (Nearest Neighbor)</em></p>
+    <p style="margin-top: 8px;"><em>Upscaled 2× (Box Filter)</em></p>
   </div>
   </div>
 
@@ -384,46 +390,386 @@
   <h3>3. Bilinear Interpolation</h3>
   <p>This method uses four nearby pixels and blends them based on distance. It’s like creating a weighted average of nearby colors.</p>
   <pre><code>def bilinear_interpolate(img, scale):
-    ...
+ 
+    h, w, c = img.shape
+    new_h, new_w = int(h * scale), int(w * scale)
+    result = np.zeros((new_h, new_w, c), dtype=np.uint8)
+
+    for i in range(new_h):
+        for j in range(new_w):
+            x = i / scale
+            y = j / scale
+
+            x0 = int(np.floor(x))
+            y0 = int(np.floor(y))
+            x1 = min(x0 + 1, h - 1)
+            y1 = min(y0 + 1, w - 1)
+
+            dx = x - x0
+            dy = y - y0
+
+            for k in range(c):
+                a = img[x0, y0, k]
+                b = img[x0, y1, k]
+                c_ = img[x1, y0, k]
+                d = img[x1, y1, k]
+
+                value = (
+                    a * (1 - dx) * (1 - dy) +
+                    b * (1 - dx) * dy +
+                    c_ * dx * (1 - dy) +
+                    d * dx * dy
+                )
+
+                result[i, j, k] = int(value)
+            
+    return result
 </code></pre>
 
-  <p><strong>Before:</strong></p>
-  <img src="img/before_bilinear.jpg" alt="Before bilinear">
-  <p><strong>After (Bilinear):</strong></p>
-  <img src="img/after_bilinear.jpg" alt="After bilinear">
+  <p>What the algorithm does:</p>
+<ul>
+  <li>Each pixel in the enlarged image is calculated as a weighted average of the four closest pixels in the original image.</li>
+  <li>The weights depend on the distance of the target pixel to each neighbor.</li>
+  <li>This results in smooth transitions and a softer look, reducing harsh edges.</li>
+</ul>
 
-  <h3>4. Bicubic Interpolation</h3>
-  <p>Smoother than bilinear and uses a 4x4 neighborhood. It's computationally heavier but the results are cleaner — especially around edges.</p>
-  <pre><code>def bicubic_interpolate(img, scale):
-    return zoom(img, (scale, scale, 1), order=3).astype(np.uint8)</code></pre>
+<div style="display: flex; justify-content: center; gap: 40px; margin-top: 20px;">
+  <div style="display: flex; flex-direction: column; align-items: center;">
+    <img 
+      src="imageupscaleing1_img/moon_or.png" 
+      alt="Original" 
+      style="width: 400px; height: 400px; object-fit: cover; object-position: top;">
+    <p style="margin-top: 8px;"><em>Original</em></p>
+  </div>
+  <div style="display: flex; flex-direction: column; align-items: center;">
+    <img 
+      src="imageupscaleing1_img/moon_bilinear_2.png" 
+      alt="Upscaled using Bilinear Interpolation" 
+      style="width: 400px; height: 400px; object-fit: cover;">
+    <p style="margin-top: 8px;"><em>Upscaled (Bilinear)</em></p>
+  </div>
+</div>
 
-  <p><strong>Before:</strong></p>
-  <img src="img/before_bicubic.jpg" alt="Before bicubic">
-  <p><strong>After (Bicubic):</strong></p>
-  <img src="img/after_bicubic.jpg" alt="After bicubic">
+<p>
+Let's examine the Bilinear Interpolation effect on a 5×5 test image. 
+Because this method blends the four closest pixel values, each color in the result is a mix. 
+In contrast to nearest neighbor or box filtering, bilinear blending produces a smoother appearance, even on very low-resolution images. Row-wise comparison in the test image shows large color differences due to the weighted color average of closest pixels. (Side fact: Since the algorithm only checks for the closest pixel values in the original pixel, the right neighbor, the bottom-right neighbor and the bottom neighbor, the colors don't change in the last two rows and columns.)
+</p>
 
-  <h3>5. Lanczos Interpolation</h3>
-  <p>High-end method. It uses a sinc-based kernel and looks at many pixels. Preserves edges beautifully, but it’s slower. It’s what Photoshop uses when it’s trying to impress you.</p>
-  <pre><code>def lanczos_interpolate(img, scale):
+<div style="display: flex; justify-content: center; gap: 80px; margin-top: 20px;">
+  <div style="display: flex; flex-direction: column; align-items: center;">
+    <img 
+      src="imageupscaleing1_img/5x5_test.png" 
+      alt="5x5 Original Test Image" 
+      style="width: 300px; height: 300px; image-rendering: pixelated; object-fit: contain;"
+    >
+    <p style="margin-top: 8px;"><em>Original 5×5 Image</em></p>
+  </div>
+  <div style="display: flex; flex-direction: column; align-items: center;">
+    <img 
+      src="imageupscaleing1_img/5x5_t_upscaled_2x_bilinear.jpg" 
+      alt="5x5 Upscaled (Bilinear)" 
+      style="width: 300px; height: 300px; image-rendering: pixelated; object-fit: contain;"
+    >
+    <p style="margin-top: 8px;"><em>Upscaled 2× (Bilinear)</em></p>
+  </div>
+</div>
+
+  <h3>4. Bicubic Interpolation (Scipy)</h3>
+  <p>Smoother than bilinear and uses a 4x4 neighborhood. It's computationally heavier but the results are cleaner — especially around edges. We will keep things short for bicubic interpolation and use Scipy's zoom().</p>
+  <pre><code>from scipy.ndimage import zoom
+
+def bicubic_interpolate(img, scale):
+    """Upscales image using bicubic interpolation.
+
+    This method uses 4x4 (16) nearby pixels and cubic functions to interpolate
+    each new pixel value. It produces smoother results than bilinear.
+
+    We're using SciPy's built-in `zoom()` with `order=3`:
+    - order=0: Nearest
+    - order=1: Bilinear
+    - order=3: Bicubic
+    """
+
+    return zoom(img, (scale, scale, 1), order=3).astype(np.uint8)
+</code></pre>
+
+<p>What the algorithm does:</p>
+<ul>
+  <li>Each new pixel is computed using a weighted average of a 4×4 neighborhood (16 pixels).</li>
+  <li>The weights are based on cubic polynomials for smoother interpolation.</li>
+  <li>Bicubic interpolation reduces aliasing and preserves detail better than bilinear, especially in photos with gradients or textures.</li>
+</ul>
+
+<div style="display: flex; justify-content: center; gap: 40px; margin-top: 20px;">
+  <div style="display: flex; flex-direction: column; align-items: center;">
+    <img 
+      src="imageupscaleing1_img/moon_or.png" 
+      alt="Original" 
+      style="width: 400px; height: 400px; object-fit: cover; object-position: top;">
+    <p style="margin-top: 8px;"><em>Original</em></p>
+  </div>
+  <div style="display: flex; flex-direction: column; align-items: center;">
+    <img 
+      src="imageupscaleing1_img/moon_bicubic_2.png" 
+      alt="Upscaled using Bicubic Interpolation" 
+      style="width: 400px; height: 400px; object-fit: cover;">
+    <p style="margin-top: 8px;"><em>Upscaled (Bicubic)</em></p>
+  </div>
+</div>
+
+<p>
+Now let’s look at the effect of bicubic interpolation on a 5×5 test image.
+Bicubic interpolation pulls information from a wider neighborhood (4×4), blending values using cubic functions.
+This produces a much smoother image compared to nearest or bilinear methods—but the result may introduce slight ringing artifacts near high-contrast edges. (Side fact: SciPy's zoom function can easily perform bilinear and nearest neighbor interpolation as well, by simply changing the order parameter.)
+</p>
+
+<div style="display: flex; justify-content: center; gap: 80px; margin-top: 20px;">
+  <div style="display: flex; flex-direction: column; align-items: center;">
+    <img 
+      src="imageupscaleing1_img/5x5_test.png" 
+      alt="5x5 Original Test Image" 
+      style="width: 300px; height: 300px; image-rendering: pixelated; object-fit: contain;"
+    >
+    <p style="margin-top: 8px;"><em>Original 5×5 Image</em></p>
+  </div>
+  <div style="display: flex; flex-direction: column; align-items: center;">
+    <img 
+      src="imageupscaleing1_img/5x5_t_upscaled_2x_bicubic.jpg" 
+      alt="5x5 Upscaled (Bicubic)" 
+      style="width: 300px; height: 300px; image-rendering: pixelated; object-fit: contain;"
+    >
+    <p style="margin-top: 8px;"><em>Upscaled 2× (Bicubic)</em></p>
+  </div>
+</div>
+
+<h3>5. Lanczos Interpolation (PIL)</h3>
+
+<p>
+Lanczos interpolation is a high-quality image upscaling method that uses a <strong>windowed sinc filter</strong> to blend many surrounding pixels (usually 6–8 per axis). 
+It creates sharp, smooth results with minimal aliasing and is often used in professional tools like Photoshop.
+</p>
+
+<pre><code>from PIL import Image
+  
+def lanczos_interpolate(img, scale):
+    """Upscales using Lanczos resampling (high-quality).
+
+    Lanczos uses a sinc-based kernel to interpolate pixel values,
+    looking at a wide window of surrounding pixels (usually 8).
+
+    It preserves edge sharpness better than bicubic and is often
+    used in professional photo editing tools.
+    """
+
     pil_img = Image.fromarray(img)
     new_size = (int(img.shape[1] * scale), int(img.shape[0] * scale))
     resized = pil_img.resize(new_size, resample=Image.LANCZOS)
-    return np.array(resized)</code></pre>
+    return np.array(resized)
+</code></pre>
 
-  <p><strong>Before:</strong></p>
-  <img src="img/before_lanczos.jpg" alt="Before lanczos">
-  <p><strong>After (Lanczos):</strong></p>
-  <img src="img/after_lanczos.jpg" alt="After lanczos">
+<p>
+  What the algorithm does:
+</p>
+<ul>
+  <li>Uses a sinc-based kernel to interpolate pixels based on many neighbors (usually 8).</li>
+  <li>Preserves sharp edges and reduces aliasing better than other methods.</li>
+  <li>Produces high-quality results, especially for photographs or detailed patterns.</li>
+</ul>
+
+<div style="display: flex; justify-content: center; gap: 40px; margin-top: 20px;">
+  <div style="display: flex; flex-direction: column; align-items: center;">
+    <img 
+      src="imageupscaleing1_img/moon_or.png" 
+      alt="Original" 
+      style="width: 400px; height: 400px; object-fit: cover; object-position: top;">
+    <p style="margin-top: 8px;"><em>Original</em></p>
+  </div>
+  <div style="display: flex; flex-direction: column; align-items: center;">
+    <img 
+      src="imageupscaleing1_img/moon_lanczos_2.png" 
+      alt="Lanczos Upscaled" 
+      style="width: 400px; height: 400px; object-fit: cover;">
+    <p style="margin-top: 8px;"><em>Upscaled (Lanczos)</em></p>
+  </div>
+</div>
+
+<p>
+  Let's also look at the effect of Lanczos interpolation on a 5×5 pixel test image. The Lanczos filter blends across a wider area, creating very smooth transitions between color regions — sometimes even introducing small ripples (ringing artifacts) around sharp edges.
+</p>
+
+<div style="display: flex; justify-content: center; gap: 80px; margin-top: 20px;">
+  <div style="display: flex; flex-direction: column; align-items: center;">
+    <img 
+      src="imageupscaleing1_img/5x5_test.png" 
+      alt="5x5 Original Test Image" 
+      style="width: 300px; height: 300px; image-rendering: pixelated; object-fit: contain;"
+    >
+    <p style="margin-top: 8px;"><em>Original 5×5 Image</em></p>
+  </div>
+  <div style="display: flex; flex-direction: column; align-items: center;">
+    <img 
+      src="imageupscaleing1_img/5x5_t_upscaled_2x_lanczos.jpg" 
+      alt="5x5 Upscaled (Lanczos)" 
+      style="width: 300px; height: 300px; image-rendering: pixelated; object-fit: contain;"
+    >
+    <p style="margin-top: 8px;"><em>Upscaled 2× (Lanczos)</em></p>
+  </div>
+</div>
 
   <h3>6. Real-ESRGAN (Deep Learning-Based)</h3>
   <p>And now, the heavyweight champ. <strong>Real-ESRGAN</strong> is a deep neural network trained on a large dataset to generate realistic high-res images from low-res ones. It doesn’t just interpolate — it <em>hallucinates</em> details.</p>
 
-  <p>Installation and usage are beyond this article’s scope, but you can check it out here: <a href="https://github.com/xinntao/Real-ESRGAN" target="_blank">Real-ESRGAN GitHub</a>.</p>
 
-  <p><strong>Before:</strong></p>
-  <img src="img/before_realesrgan.jpg" alt="Before realesrgan">
-  <p><strong>After (Real-ESRGAN):</strong></p>
-  <img src="img/after_realesrgan.jpg" alt="After realesrgan">
+<p>
+  It builds upon the ESRGAN framework and uses a deep convolutional architecture called <code>RRDBNet</code>. The model is trained on large datasets and can enhance a variety of images — from natural scenes to human faces — with remarkable detail and minimal artifacts.
+</p>
+
+<p>
+  Below is one way to use Real-ESRGAN in Python. Make sure to clone the repo and download the pretrained weights from the 
+  <a href="https://github.com/xinntao/Real-ESRGAN" target="_blank">official GitHub repository</a>.
+</p>
+
+<pre><code>import os
+import torch
+import numpy as np
+from PIL import Image
+from basicsr.archs.rrdbnet_arch import RRDBNet
+from realesrgan import RealESRGANer
+
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+# Load the original image
+image_path = "img/mountain_moon_or.jpg"
+img = Image.open(image_path).convert("RGB")
+img_np = np.array(img)
+
+# Define the model architecture (must match pretrained weights)
+model = RRDBNet(
+    num_in_ch=3, num_out_ch=3,
+    num_feat=64, num_block=23,
+    num_grow_ch=32, scale=4
+)
+
+model_path = "weights/RealESRGAN_x4plus.pth"  # Pretrained model
+
+# Initialize the upscaling engine
+upscaler = RealESRGANer(
+    scale=4,
+    model_path=model_path,
+    model=model,
+    tile=0,
+    tile_pad=10,
+    pre_pad=0,
+    half=torch.cuda.is_available(),
+    device=device
+)
+
+# Perform upscaling
+output, _ = upscaler.enhance(img_np, outscale=4)
+
+# Save result
+Image.fromarray(output).save("img/mountain_moon_upscaled_realersgan.jpg")
+</code></pre>
+<p>We will explore how neural networks work in another blog post. For now, check out the results of Real-ESRGAN on our moon image (4× upscaled). Not only does the result look a lot more clean compared to the trials with the other algorithms - it even cleans the noise in the blue background that occures in the original image!</p>
+<div style="display: flex; justify-content: center; gap: 40px; margin-top: 20px;">
+  <div style="display: flex; flex-direction: column; align-items: center;">
+    <img 
+      src="imageupscaleing1_img/moon_or.png" 
+      alt="Original mountain moon image" 
+      style="width: 400px; height: 400px; object-fit: cover; object-position: top;">
+    <p style="margin-top: 8px;"><em>Original</em></p>
+  </div>
+  <div style="display: flex; flex-direction: column; align-items: center;">
+    <img 
+      src="imageupscaleing1_img/moon_realesrgan_4.png" 
+      alt="Upscaled mountain moon image with Real-ESRGAN" 
+      style="width: 400px; height: 400px; object-fit: cover;">
+    <p style="margin-top: 8px;"><em>Upscaled 4x (Real-ESRGAN)</em></p>
+  </div>
+</div>
+
+<h4>Experiment: Real-ESRGAN on a 5×5 Pixel Image</h4>
+<p>
+  A powerful upscaling model like Real-ESRGAN knows how to return a clean image and was even able to clear the noise in the blue background. This showcases one of the areas where simple mathematical methods struggle — neural networks can learn complex patterns from image data, essentially understanding how a clean sky should look, allowing them to perform what seems like "magic" on noisy or damaged images.
+
+  But what happens if we apply Real-ESRGAN to our 5×5 test image? This could be one of those special cases where the model hasn’t been trained or doesn’t know how to interpret the unusual pattern, leading to unpredictable or unexpected results.
+</p>
+
+<div style="display: flex; justify-content: center; gap: 80px; margin-top: 20px;">
+  <div style="display: flex; flex-direction: column; align-items: center;">
+    <img 
+      src="imageupscaleing1_img/5x5_test.png" 
+      alt="5x5 Original Test Image" 
+      style="width: 300px; height: 300px; image-rendering: pixelated; object-fit: contain;"
+    >
+    <p style="margin-top: 8px;"><em>Original 5×5 Image</em></p>
+  </div>
+  <div style="display: flex; flex-direction: column; align-items: center;">
+    <img 
+      src="imageupscaleing1_img/5x5_t_upscaled_realersgan_4.jpg" 
+      alt="5x5 Upscaled (Real-ESRGAN)" 
+      style="width: 300px; height: 300px; image-rendering: pixelated; object-fit: contain;"
+    >
+    <p style="margin-top: 8px;"><em>Upscaled 4× (Real-ESRGAN)</em></p>
+  </div>
+</div>
+
+<p>
+  The results show how Real-ESRGAN handles unconventional input. The model smooths the image significantly, distributing colors based on the minimal structure it finds in the 5×5 input. At first glance, the result may appear slightly darker overall, but this is mostly superficial. 
+</p>
+<p>
+  To test further, we apply a second and third round of 4× upscaling (totaling 16× and 64× enlargement). Since Real-ESRGAN is designed for fixed-scale enhancement, this multi-stage process demonstrates how the model continues to infer detail — even from abstract or synthetic patterns — resulting in a soft, blended image with an almost painted or dreamlike quality.
+</p>
+
+<div style="display: flex; justify-content: center; gap: 60px; margin-top: 20px;">
+  <div style="display: flex; flex-direction: column; align-items: center;">
+    <img 
+      src="imageupscaleing1_img/5x5_t_upscaled_realersgan_4_4.jpg" 
+      alt="Upscaled 16× (Real-ESRGAN)" 
+      style="width: 280px; height: 280px; object-fit: contain;"
+    >
+    <p style="margin-top: 8px;"><em>Upscaled 16× (Real-ESRGAN)</em></p>
+  </div>
+  <div style="display: flex; flex-direction: column; align-items: center;">
+    <img 
+      src="imageupscaleing1_img/5x5_t_upscaled_realersgan_4_4_4.jpg" 
+      alt="Upscaled 64× (Real-ESRGAN)" 
+      style="width: 280px; height: 280px; object-fit: contain;"
+    >
+    <p style="margin-top: 8px;"><em>Upscaled 64× (Real-ESRGAN)</em></p>
+  </div>
+</div>
+
+<p>
+  To test the consistency of Real-ESRGAN, we repeated the exact same three-stage upscaling procedure (starting from the original 5×5 test image). This was done to check whether the model introduces any randomness or variability in its output. The result: Real-ESRGAN produced identical upscaled images — both for the 4× and 64× versions — confirming that the model behaves deterministically under the same conditions.
+</p>
+
+<div style="display: flex; justify-content: center; gap: 60px; margin-top: 20px;">
+  <div style="display: flex; flex-direction: column; align-items: center;">
+    <img 
+      src="imageupscaleing1_img/5x5_t_upscaled_realersgan_another_4.jpg" 
+      alt="Repeated Upscaled 4× (Real-ESRGAN)" 
+      style="width: 280px; height: 280px; object-fit: contain;"
+    >
+    <p style="margin-top: 8px;"><em>Repeated Upscale 4× (Real-ESRGAN)</em></p>
+  </div>
+  <div style="display: flex; flex-direction: column; align-items: center;">
+    <img 
+      src="imageupscaleing1_img/5x5_t_upscaled_realersgan_another_4_4_4.jpg" 
+      alt="Repeated Upscaled 64× (Real-ESRGAN)" 
+      style="width: 280px; height: 280px; object-fit: contain;"
+    >
+    <p style="margin-top: 8px;"><em>Repeated Upscale 64× (Real-ESRGAN)</em></p>
+  </div>
+</div>
+
+<p> In summary, Real-ESRGAN demonstrates impressive capabilities to enhance and generate high-quality details from low-resolution images, even on unusual inputs like our 5×5 test pattern. While it can produce strikingly smooth and natural results, it also behaves deterministically, consistently recreating the same output for identical inputs. </p> 
+<p> In a follow-up article, we will go deeper into how Real-ESRGAN’s neural network architecture learns and performs upscaling, why it produces consistent results on repeated runs, and we will explore additional experiments to better understand its strengths and limitations. </p>
+
+<p>
+  📌 Note: Real-ESRGAN is still widely used today and actively maintained. It performs exceptionally well for photographic content, anime, and digital art.
+</p>
 
   <h2>Wrapping Up: Why Pixel Manipulation Matters</h2>
   <p>What started as a humble for-loop scaling a few pixels can easily lead into big-league topics like:</p>
