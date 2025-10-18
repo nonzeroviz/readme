@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pixel Manipulation Matters Part 2: Chromatic Pixel Engineering</title>
+  <style>
+    body { font-family: Arial, sans-serif; line-height: 1.7; padding: 2rem; max-width: 900px; margin: auto; }
+    pre { background: #f4f4f4; padding: 1rem; overflow-x: auto; }
+    img { max-width: 100%; border: 1px solid #ccc; margin: 1rem 0; }
+    h2 { border-bottom: 1px solid #eee; padding-bottom: 0.3rem; }
+  </style>
+</head>
+<body>
+  <h1>Pixel Manipulation Matters Part 2: Chromatic Pixel Engineering</h1>
+
+  <p>Welcome back to our deep dive on pixels! In the first part, we covered the basics of upscaling and how raw pixel data is handled. Here in Part 2, we’ll shift gears toward <strong>chromatic pixel engineering</strong> — a fancy way of describing how individual pixel values can be manipulated to create striking visual effects. This is the territory of video editors and creative software like <em>Adobe Premiere, CapCut, DaVinci Resolve</em>, and others, where color grading, opacity tricks, filters, and blending modes all boil down to transformations on pixel arrays.</p>
+
+  <p>Why does this matter? Because whether you’re fine-tuning cinematic color tones or applying glitch transitions on TikTok edits, you’re essentially programming pixels — even if you don’t write a single line of code. Understanding these mechanics helps us not only appreciate modern tools, but also replicate them in code experiments, bridging practical creativity with computational models.</p>
+
+  <p>Full code can be found <a href="https://github.com/nonzeroviz/image_upscaler_experiments" target="_blank">HERE</a></p>
+
+  <section>
+    <h2>Experiment 1: Effects with Classical Algorithms</h2>
+    <p>We’ll start with some small 16×16 test images (random colors, simple shapes) stored as raw PPMs. This lets us manipulate every pixel directly.</p>
+
+    <h3>Nearest Neighbor Upscaling</h3>
+    <p>Each pixel is simply copied into a bigger grid. Chunky, but faithful.</p>
+    <pre><code># nearest_neighbor.py
+from ppm_utils import read_ppm, write_ppm
+
+def upscale_nearest(width, height, data, scale):
+    new_w, new_h = width * scale, height * scale
+    new_data = bytearray()
+    for y in range(new_h):
+        for x in range(new_w):
+            src_x = x // scale
+            src_y = y // scale
+            idx = (src_y * width + src_x) * 3
+            new_data.extend(data[idx:idx+3])
+    return new_w, new_h, new_data
+
+w, h, d = read_ppm("test16.ppm")
+nw, nh, nd = upscale_nearest(w, h, d, 8)
+write_ppm("up_nn.ppm", nw, nh, nd)
+</code></pre>
+
+    <h3>Bicubic/Bilinear Approximation</h3>
+    <p>We can also blend neighboring pixels. Here’s a very simple bilinear version (no fancy libraries needed).</p>
+    <pre><code># bilinear.py
+from ppm_utils import read_ppm, write_ppm
+
+def get_pixel(data, width, x, y):
+    i = (y * width + x) * 3
+    return data[i], data[i+1], data[i+2]
+
+def bilinear_resize(width, height, data, scale):
+    new_w, new_h = width * scale, height * scale
+    new_data = bytearray()
+    for y in range(new_h):
+        for x in range(new_w):
+            gx = x / (new_w - 1) * (width - 1)
+            gy = y / (new_h - 1) * (height - 1)
+            x0, y0 = int(gx), int(gy)
+            x1, y1 = min(x0+1, width-1), min(y0+1, height-1)
+            dx, dy = gx - x0, gy - y0
+            c00 = get_pixel(data, width, x0, y0)
+            c10 = get_pixel(data, width, x1, y0)
+            c01 = get_pixel(data, width, x0, y1)
+            c11 = get_pixel(data, width, x1, y1)
+            r = (c00[0]*(1-dx)*(1-dy) + c10[0]*dx*(1-dy) +
+                 c01[0]*(1-dx)*dy + c11[0]*dx*dy)
+            g = (c00[1]*(1-dx)*(1-dy) + c10[1]*dx*(1-dy) +
+                 c01[1]*(1-dx)*dy + c11[1]*dx*dy)
+            b = (c00[2]*(1-dx)*(1-dy) + c10[2]*dx*(1-dy) +
+                 c01[2]*(1-dx)*dy + c11[2]*dx*dy)
+            new_data.extend([int(r), int(g), int(b)])
+    return new_w, new_h, new_data
+
+w, h, d = read_ppm("test16.ppm")
+nw, nh, nd = bilinear_resize(w, h, d, 8)
+write_ppm("up_bilinear.ppm", nw, nh, nd)
+</code></pre>
+
+    <h3>Laplacian Sharpening</h3>
+    <p>Once we upscale, we can run a Laplacian filter to enhance edges. This mimics what many editors do under the hood.</p>
+    <pre><code># laplacian.py
+from ppm_utils import read_ppm, write_ppm
+
+kernel = [[0, -1, 0],
+          [-1, 4, -1],
+          [0, -1, 0]]
+
+def apply_laplacian(width, height, data):
+    new_data = bytearray()
+    for y in range(height):
+        for x in range(width):
+            r_sum = g_sum = b_sum = 0
+            for ky in range(-1, 2):
+                for kx in range(-1, 2):
+                    nx, ny = min(max(x+kx, 0), width-1), min(max(y+ky, 0), height-1)
+                    idx = (ny * width + nx) * 3
+                    weight = kernel[ky+1][kx+1]
+                    r_sum += data[idx] * weight
+                    g_sum += data[idx+1] * weight
+                    b_sum += data[idx+2] * weight
+            r = min(255, max(0, r_sum))
+            g = min(255, max(0, g_sum))
+            b = min(255, max(0, b_sum))
+            new_data.extend([r, g, b])
+    return width, height, new_data
+
+w, h, d = read_ppm("up_bilinear.ppm")
+nw, nh, nd = apply_laplacian(w, h, d)
+write_ppm("up_sharpened.ppm", nw, nh, nd)
+</code></pre>
+  </section>
+
+  <section>
+    <h2>Experiment 2: Opacity at the Pixel Level</h2>
+    <p>Opacity usually makes us think of Photoshop layers, but here we’ll apply it directly at the pixel array level. Imagine blending the original low-res image with the Real-ESRGAN upscaled version at varying alpha values (0.1, 0.5, 0.9). What emerges?</p>
+    <p>This experiment connects to the way tools like CapCut or DaVinci use opacity and blend modes to create cinematic layering — only here we’re stripping it down to its raw pixel math.</p>
+    <pre><code># pseudocode
+blend = alpha * esrgan_upscaled + (1 - alpha) * original_resized</code></pre>
+  </section>
+
+  <section>
+    <h2>Experiment 3: Simple Image Generation</h2>
+    <p>What if instead of only upscaling, we try to generate new images — in the simplest possible way? Two starter ideas:</p>
+    <ul>
+      <li><strong>Random Noise to Patterns:</strong> Start with a noise image and apply iterative smoothing/sharpening to “grow” structures.</li>
+      <li><strong>Rule-based Pixel Painting:</strong> Define pixel colors based on math functions (e.g., sine waves, gradients, cellular automata).</li>
+    </ul>
+    <p>These baby steps echo the way modern video editors layer filters and LUTs (Look-Up Tables) onto footage, but at the most granular pixel scale. This is also the conceptual bridge from upscaling to generative art.</p>
+  </section>
+
+  <section>
+    <h2>Where This Leads: Stable Diffusion</h2>
+    <p>Stable Diffusion takes the leap from deterministic upscaling into full-blown stochastic creativity. While Real-ESRGAN gives us reliability and fidelity, diffusion models thrive on randomness and iterative denoising. The bridge is clear: once we understand pixel manipulations and basic generation, we can appreciate how diffusion builds entire scenes out of noise.</p>
+    <p>That will be the subject of our next article.</p>
+  </section>
+
+</body>
+</html>
